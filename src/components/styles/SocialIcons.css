@@ -101,3 +101,44 @@ div.resume-button span {
     margin-top: -1.5px;
   }
 }
+
+/* Mobile-first: keep layout clean and easy to tap */
+@media only screen and (max-width: 767px) {
+  .social-icons {
+    display: flex;
+    flex-direction: row;
+    left: 10px;
+    bottom: 10px;
+    gap: 10px;
+    padding: 8px;
+  }
+
+  .social-icons span {
+    width: 42px;
+    height: 42px;
+  }
+
+  .social-icons a {
+    font-size: 22px;
+  }
+
+  .resume-button {
+    position: fixed;
+    right: 12px;
+    bottom: 12px;
+    transform: none;
+    font-size: 14px;
+    line-height: 14px;
+    letter-spacing: 3px;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    padding: 10px 12px;
+    border-radius: 9999px;
+    backdrop-filter: blur(10px);
+  }
+
+  div.resume-button span {
+    font-size: 18px;
+    margin-top: 0;
+  }
+}

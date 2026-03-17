@@ -14,6 +14,17 @@ export default function IntroScroll({ onFinish }: IntroScrollProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
+    const isCoarsePointer =
+      typeof window !== "undefined" &&
+      window.matchMedia &&
+      window.matchMedia("(pointer: coarse)").matches;
+    const isSmallScreen = typeof window !== "undefined" && window.innerWidth < 768;
+    // Lower memory devices benefit from fewer frames rendered.
+    const deviceMemory = (navigator as any).deviceMemory as number | undefined;
+    const isLowMemory = typeof deviceMemory === "number" && deviceMemory > 0 && deviceMemory <= 4;
+    const isMobileOptimized = isCoarsePointer || isSmallScreen || isLowMemory;
+    const FRAME_STEP = isMobileOptimized ? 2 : 1; // render every 2nd frame on mobile-like devices
+
     const prevOverflow = document.body.style.overflowY;
     const prevOverflowX = document.body.style.overflowX;
     document.body.style.overflowY = "auto";
@@ -21,7 +32,7 @@ export default function IntroScroll({ onFinish }: IntroScrollProps) {
 
     const lenis = new Lenis({
       // Lower duration = less “lag” feeling on scroll
-      duration: 0.75,
+      duration: isMobileOptimized ? 0.55 : 0.75,
       smoothWheel: true,
       syncTouch: true,
     });
@@ -86,9 +97,9 @@ export default function IntroScroll({ onFinish }: IntroScrollProps) {
     // We keep a small LRU-ish cache and prefetch a short window around the current frame.
     const imageCache = new Map<string, HTMLImageElement>();
     const cacheOrder: string[] = [];
-    const MAX_CACHE = 80;
-    const PREFETCH_AHEAD = 8;
-    const PREFETCH_BEHIND = 4;
+    const MAX_CACHE = isMobileOptimized ? 56 : 80;
+    const PREFETCH_AHEAD = isMobileOptimized ? 6 : 8;
+    const PREFETCH_BEHIND = isMobileOptimized ? 3 : 4;
 
     let currentSeqIndex = 0;
     let currentFrameIndex = 0;
@@ -147,15 +158,16 @@ export default function IntroScroll({ onFinish }: IntroScrollProps) {
     };
 
     const render = () => {
-      const key = `${currentSeqIndex}:${currentFrameIndex}`;
+      const steppedFrame = Math.round(currentFrameIndex / FRAME_STEP) * FRAME_STEP;
+      const key = `${currentSeqIndex}:${steppedFrame}`;
       if (key === lastRenderedKey) return;
-      const img = getImage(currentSeqIndex, currentFrameIndex);
+      const img = getImage(currentSeqIndex, steppedFrame);
       if (img && img.complete) {
         drawImageProp(context, img);
         lastRenderedKey = key;
-        prefetchWindow(currentSeqIndex, currentFrameIndex);
+        prefetchWindow(currentSeqIndex, steppedFrame);
       } else {
-        prefetchWindow(currentSeqIndex, currentFrameIndex);
+        prefetchWindow(currentSeqIndex, steppedFrame);
       }
     };
 
@@ -170,7 +182,8 @@ export default function IntroScroll({ onFinish }: IntroScrollProps) {
 
     const resizeCanvas = () => {
       // Cap DPR to avoid huge canvas work on high-DPI screens
-      const dpr = Math.min(window.devicePixelRatio || 1, 1.25);
+      const dprCap = isMobileOptimized ? 1 : 1.25;
+      const dpr = Math.min(window.devicePixelRatio || 1, dprCap);
       canvas.width = window.innerWidth * dpr;
       canvas.height = window.innerHeight * dpr;
       canvas.style.width = window.innerWidth + "px";
@@ -202,7 +215,7 @@ export default function IntroScroll({ onFinish }: IntroScrollProps) {
           start: "top top",
           end: "bottom top",
           // Lower scrub = more responsive (less “sticky”)
-          scrub: 0.25,
+          scrub: isMobileOptimized ? 0.18 : 0.25,
           onUpdate: () => {
             currentSeqIndex = index;
             currentFrameIndex = Math.round(obj.frame);

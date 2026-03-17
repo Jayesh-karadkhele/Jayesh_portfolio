@@ -10,6 +10,14 @@ export let smoother: ScrollSmoother;
 
 const Navbar = () => {
   useEffect(() => {
+    const isCoarsePointer =
+      typeof window !== "undefined" &&
+      window.matchMedia &&
+      window.matchMedia("(pointer: coarse)").matches;
+    const isDesktop = window.innerWidth > 1024 && !isCoarsePointer;
+
+    if (!isDesktop) return;
+
     smoother = ScrollSmoother.create({
       wrapper: "#smooth-wrapper",
       content: "#smooth-content",

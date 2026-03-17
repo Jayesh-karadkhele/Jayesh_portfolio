@@ -9,17 +9,29 @@ import HoverLinks from "./HoverLinks";
 
 const SocialIcons = () => {
   useEffect(() => {
+    // Disable hover-follow animation on touch devices (no hover, saves CPU).
+    const isCoarsePointer =
+      typeof window !== "undefined" &&
+      window.matchMedia &&
+      window.matchMedia("(pointer: coarse)").matches;
+    if (isCoarsePointer) return;
+
     const social = document.getElementById("social") as HTMLElement;
+    if (!social) return;
+
+    const cleanups: Array<() => void> = [];
 
     social.querySelectorAll("span").forEach((item) => {
       const elem = item as HTMLElement;
       const link = elem.querySelector("a") as HTMLElement;
+      if (!link) return;
 
-      const rect = elem.getBoundingClientRect();
+      let rect = elem.getBoundingClientRect();
       let mouseX = rect.width / 2;
       let mouseY = rect.height / 2;
       let currentX = 0;
       let currentY = 0;
+      let rafId = 0;
 
       const updatePosition = () => {
         currentX += (mouseX - currentX) * 0.1;
@@ -28,7 +40,7 @@ const SocialIcons = () => {
         link.style.setProperty("--siLeft", `${currentX}px`);
         link.style.setProperty("--siTop", `${currentY}px`);
 
-        requestAnimationFrame(updatePosition);
+        rafId = requestAnimationFrame(updatePosition);
       };
 
       const onMouseMove = (e: MouseEvent) => {
@@ -44,14 +56,25 @@ const SocialIcons = () => {
         }
       };
 
-      document.addEventListener("mousemove", onMouseMove);
+      const onResize = () => {
+        rect = elem.getBoundingClientRect();
+      };
+
+      elem.addEventListener("mousemove", onMouseMove);
+      window.addEventListener("resize", onResize);
 
       updatePosition();
 
-      return () => {
+      cleanups.push(() => {
         elem.removeEventListener("mousemove", onMouseMove);
-      };
+        window.removeEventListener("resize", onResize);
+        cancelAnimationFrame(rafId);
+      });
     });
+
+    return () => {
+      cleanups.forEach((fn) => fn());
+    };
   }, []);
 
   return (
