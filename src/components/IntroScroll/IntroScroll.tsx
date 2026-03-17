@@ -20,7 +20,8 @@ export default function IntroScroll({ onFinish }: IntroScrollProps) {
     document.body.style.overflowX = "hidden";
 
     const lenis = new Lenis({
-      duration: 1.2,
+      // Lower duration = less “lag” feeling on scroll
+      duration: 0.75,
       smoothWheel: true,
       syncTouch: true,
     });
@@ -85,13 +86,14 @@ export default function IntroScroll({ onFinish }: IntroScrollProps) {
     // We keep a small LRU-ish cache and prefetch a short window around the current frame.
     const imageCache = new Map<string, HTMLImageElement>();
     const cacheOrder: string[] = [];
-    const MAX_CACHE = 120;
-    const PREFETCH_AHEAD = 14;
-    const PREFETCH_BEHIND = 6;
+    const MAX_CACHE = 80;
+    const PREFETCH_AHEAD = 8;
+    const PREFETCH_BEHIND = 4;
 
     let currentSeqIndex = 0;
     let currentFrameIndex = 0;
     let rafQueued = false;
+    let lastRenderedKey = "";
 
     const pad = (number: number, length: number) => {
       let str = "" + number;
@@ -128,6 +130,10 @@ export default function IntroScroll({ onFinish }: IntroScrollProps) {
       const img = new Image();
       img.decoding = "async";
       img.src = getFrameUrl(seqIndex, frameIndex);
+      img.onload = () => {
+        // If the image we were waiting on becomes ready, render next frame.
+        requestRender();
+      };
       imageCache.set(key, img);
       cacheOrder.push(key);
       enforceCacheLimit();
@@ -141,9 +147,12 @@ export default function IntroScroll({ onFinish }: IntroScrollProps) {
     };
 
     const render = () => {
+      const key = `${currentSeqIndex}:${currentFrameIndex}`;
+      if (key === lastRenderedKey) return;
       const img = getImage(currentSeqIndex, currentFrameIndex);
       if (img && img.complete) {
         drawImageProp(context, img);
+        lastRenderedKey = key;
         prefetchWindow(currentSeqIndex, currentFrameIndex);
       } else {
         prefetchWindow(currentSeqIndex, currentFrameIndex);
@@ -160,13 +169,15 @@ export default function IntroScroll({ onFinish }: IntroScrollProps) {
     };
 
     const resizeCanvas = () => {
-      const dpr = window.devicePixelRatio || 1;
+      // Cap DPR to avoid huge canvas work on high-DPI screens
+      const dpr = Math.min(window.devicePixelRatio || 1, 1.25);
       canvas.width = window.innerWidth * dpr;
       canvas.height = window.innerHeight * dpr;
       canvas.style.width = window.innerWidth + "px";
       canvas.style.height = window.innerHeight + "px";
       context.resetTransform();
       context.scale(dpr, dpr);
+      lastRenderedKey = "";
       requestRender();
     };
 
@@ -190,7 +201,8 @@ export default function IntroScroll({ onFinish }: IntroScrollProps) {
           trigger: seq.sectionId,
           start: "top top",
           end: "bottom top",
-          scrub: 0.5,
+          // Lower scrub = more responsive (less “sticky”)
+          scrub: 0.25,
           onUpdate: () => {
             currentSeqIndex = index;
             currentFrameIndex = Math.round(obj.frame);
