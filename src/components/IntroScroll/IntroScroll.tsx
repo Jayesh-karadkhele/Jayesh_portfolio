@@ -34,6 +34,9 @@ export default function IntroScroll({ onFinish }: IntroScrollProps) {
       // Lower duration = less “lag” feeling on scroll
       duration: isMobileOptimized ? 0.55 : 0.75,
       smoothWheel: true,
+      // Make the intro respond on the first wheel scroll.
+      wheelMultiplier: isMobileOptimized ? 2.2 : 1.8,
+      touchMultiplier: isMobileOptimized ? 1.6 : 1.2,
       syncTouch: true,
     });
 
@@ -204,6 +207,12 @@ export default function IntroScroll({ onFinish }: IntroScrollProps) {
 
     const triggers: ScrollTrigger[] = [];
 
+    const sectionScrollDistance = () => {
+      // Reduce how far users must scroll per sequence so animation starts immediately.
+      const vh = window.innerHeight || 800;
+      return Math.round(vh * (isMobileOptimized ? 0.9 : 1.1));
+    };
+
     sequences.forEach((seq, index) => {
       const obj = { frame: 0 };
       const tween = gsap.to(obj, {
@@ -213,7 +222,7 @@ export default function IntroScroll({ onFinish }: IntroScrollProps) {
         scrollTrigger: {
           trigger: seq.sectionId,
           start: "top top",
-          end: "bottom top",
+          end: () => `+=${sectionScrollDistance()}`,
           // Lower scrub = more responsive (less “sticky”)
           scrub: isMobileOptimized ? 0.18 : 0.25,
           onUpdate: () => {
